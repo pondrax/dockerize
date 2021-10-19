@@ -1,0 +1,78 @@
+version: '3.6'
+
+services:
+    nginx:
+        image: ${NGINX_VERSION}
+        working_dir: /src/app
+        volumes:
+            - .:/src
+            - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+            - ./docker/nginx/conf.d:/etc/nginx/conf.d
+            - ./docker/nginx/logs:/var/log/nginx
+        ports:
+            - 80:80
+            - 443:443
+        restart: unless-stopped
+        depends_on:
+            - mysql
+            - postgresql
+            - redis
+            - php
+
+    php:
+        image: ${PHP_VERSION}
+        restart: unless-stopped
+        working_dir: /src/app
+        volumes:
+            - .:/src
+            - ./docker/php/php.ini:/usr/local/etc/php/conf.d/php.ini
+
+    node:
+        image: ${NODE_VERSION}
+        tty: true
+        restart: unless-stopped
+        working_dir: /src/app
+        volumes:
+            - .:/src
+        ports:
+            - ${NODE_PORTS}:${NODE_PORTS}
+
+    mysql:
+        image: ${MYSQL_VERSION}
+        restart: unless-stopped
+        environment:
+            - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+            - MYSQL_DATABASE=${MYSQL_DATABASE}
+            - MYSQL_USER=${MYSQL_USERNAME}
+            - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+        ports:
+            - ${MYSQL_PORT}:${MYSQL_PORT}
+        volumes:
+            - ./docker/mysql/:/docker-entrypoint-initdb.d/
+            - ./docker/mysql/data/:/var/lib/mysql
+            - ./docker/mysql/my.cnf:/etc/my.cnf.d/my.cnf
+
+    postgresql:
+        image: ${POSTGRES_VERSION}
+        restart: unless-stopped
+        environment:
+            - POSTGRES_DB=${POSTGRES_DATABASE}
+            - POSTGRES_USERNAME=${POSTGRES_USERNAME}
+            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        ports:
+            - ${POSTGRES_PORT}:${POSTGRES_PORT}
+        volumes:
+            - ./docker/postgresql/:/docker-entrypoint-initdb.d/
+            - ./docker/postgresql/data/:/var/lib/postgresql/data/
+
+    redis:
+        image: redis:alpine
+        restart: unless-stopped
+        ports:
+            - ${REDIS_PORT}:${REDIS_PORT}
+
+networks:
+    default:
+        driver: bridge
+        driver_opts:
+            com.docker.network.driver.mtu: 1450

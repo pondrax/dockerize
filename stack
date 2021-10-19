@@ -1,0 +1,105 @@
+#!/bin/sh
+
+echo "Docker $@"
+
+if [ "$1" = "start" ]; then
+	if [ ! -f ".env" ]; then
+		cp .env.example .env
+		cp docker/nginx/default.conf.example docker/nginx/conf.d/default.conf
+		cp docker/php/php.ini.example docker/php/php.ini
+		cp docker/mysql/my.cnf.example docker/mysql/my.cnf
+		cp docker/postgresql/postgresql.conf.example docker/postgresql/postgresql.conf
+	fi
+	docker-compose up -d
+
+elif [ "$1" = "restart" ]; then
+	docker-compose restart
+
+elif [ "$1" = "stop" ]; then
+	docker-compose down
+
+elif [ "$1" = "forcereset" ]; then
+	sudo rm docker/mysql/data docker/postgresql/data -rf
+
+elif [ "$1" = "sh" ]; then
+
+	if [ "$2" = "" ]; then
+		docker-compose exec php sh
+	else
+		docker-compose exec $2 sh
+	fi
+
+elif [ "$1" = "ssl" ]; then
+
+	if [ "$2" = "local" ]; then
+		if [ "$3" = "list" ]; then
+			certutil -L -d sql:$HOME/.pki/nssdb
+
+		elif [ "$3" = "install" ]; then
+			openssl req -x509 -nodes -new -sha512 \
+				-days 365 -newkey rsa:4096 -keyout ssl/ca.key \
+				-out ssl/ca.pem -subj "/C=ID/CN=-TEST"
+			echo "installing root CA to browsers"
+			certutil -d sql:$HOME/.pki/nssdb -A -t TC -n "TEST.org" -i ssl/ca.pem
+
+		fi
+
+		openssl req -new -nodes -newkey rsa:4096 \
+			-keyout ssl/localhost.key -out ssl/localhost.csr \
+			-subj "/C=ID/ST=State/L=City/O=Drax/CN=-TEST"
+
+		openssl x509 -req -sha512 -days 365 \
+			-extfile ssl/v3.ext.conf \
+			-CA ssl/ca.pem -CAkey ssl/ca.key -CAcreateserial \
+			-in ssl/localhost.csr \
+			-out ssl/localhost.crt
+
+	fi
+
+else
+	docker="web php db cache"
+	script="composer artisan npm sh"
+	if [ "${docker#*$1}" != "$docker" ];then
+		if [ "${script#*$1}" != "$script" ];then
+			workdir="/src/app/localhost"
+		else
+			workdir="/src/app"
+		fi
+	else
+		workdir="/src/app/$1"
+		shift
+	fi
+
+	echo "Workdir : $workdir"
+
+	if [ "$1" = "composer" ]; then
+
+		docker-compose exec php [ ! -e /usr/bin/composer ] \
+			&& echo "installing composer" \
+			&& docker-compose exec php wget https://getcomposer.org/installer \
+			&& docker-compose exec php /usr/local/bin/php installer --install-dir=/usr/bin --filename=composer \
+			&& docker-compose exec php rm installer
+
+		docker-compose exec -w "$workdir" php "$@"
+
+	elif [ "$1" = "artisan" ]; then
+		docker-compose exec -w "$workdir" php "./$@"
+
+	elif [ "$1" = "npm" ]; then
+		docker-compose exec -w "$workdir" php "$@"
+
+	elif [ "$1" = "firebase" ]; then
+		docker-compose exec -w "$workdir" php "$@"
+
+	elif [ "$1" = "sh" ]; then
+		docker-compose exec -w "$workdir" php "$@"
+
+	elif [ "$1" = "storage" ]; then
+		docker-compose exec -w "$workdir" php chown 82:82 ./storage -R
+
+	else
+		docker-compose exec -w "$workdir" "$@"
+
+	fi
+
+fi

@@ -1,0 +1,32 @@
+version: '3.6'
+
+#services:
+    #nginx:
+        #entrypoint: ['echo','disabled']
+        #restart: unless-stopped
+
+    #php:
+        #entrypoint: ['echo','disabled']
+        #restart: unless-stopped
+
+    #node:
+        #entrypoint: ['echo','disabled']
+        #restart: unless-stopped
+
+    #mysql:
+        #entrypoint: ['echo','disabled']
+        #restart: unless-stopped
+
+    #postgresql:
+        #entrypoint: ['echo','disabled']
+        #restart: unless-stopped
+
+    #redis:
+        #entrypoint: ['echo','disabled']
+        #restart: unless-stopped
+
+networks:
+    default:
+        driver: bridge
+        driver_opts:
+            com.docker.network.driver.mtu: 1450
