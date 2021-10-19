@@ -1,8 +1,4 @@
 !.gitignore
 !default.conf.example
 !nginx.conf
-
-*.conf
-data
-logs
-
+*

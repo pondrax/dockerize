@@ -1,5 +1,4 @@
 !.gitignore
 !my.cnf.example
 
-*.cnf
-data
+*
