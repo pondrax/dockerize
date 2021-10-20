@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 echo "Docker $@"
 
@@ -34,26 +34,31 @@ elif [ "$1" = "ssl" ]; then
 	if [ "$2" = "local" ]; then
 		if [ "$3" = "list" ]; then
 			certutil -L -d sql:$HOME/.pki/nssdb
+		else
+			if [ "$3" = "install" ]; then
+				openssl req -x509 -nodes -new -sha512 \
+					-days 365 -newkey rsa:4096 -keyout ssl/ca.key \
+					-out ssl/ca.pem -subj "/C=ID/CN=-TEST"
+				echo "installing root CA to browsers"
+				certutil -d sql:$HOME/.pki/nssdb -A -t TC -n "TEST.org" -i ssl/ca.pem
 
-		elif [ "$3" = "install" ]; then
-			openssl req -x509 -nodes -new -sha512 \
-				-days 365 -newkey rsa:4096 -keyout ssl/ca.key \
-				-out ssl/ca.pem -subj "/C=ID/CN=-TEST"
-			echo "installing root CA to browsers"
-			certutil -d sql:$HOME/.pki/nssdb -A -t TC -n "TEST.org" -i ssl/ca.pem
+			openssl req -new -nodes -newkey rsa:4096 \
+				-keyout ssl/localhost.key -out ssl/localhost.csr \
+				-subj "/C=ID/ST=State/L=City/O=Drax/CN=-TEST"
+			fi
 
+			ALT_NAMES="DNS:localhost,DNS:127.0.0.1"
+			for d in app/*/ ; do
+				ALT_NAMES+=",DNS:"$(basename $d)".test"
+			done
+
+			echo $ALT_NAMES
+
+			openssl x509 -req -extfile <(printf "subjectAltName=$ALT_NAMES") -days 365 -in ssl/localhost.csr -CA ssl/ca.pem -CAkey ssl/ca.key -CAcreateserial -out ssl/localhost.crt
+			#openssl x509 -in ssl/localhost.crt -text -noout
+
+			docker-compose exec nginx nginx -s reload
 		fi
-
-		openssl req -new -nodes -newkey rsa:4096 \
-			-keyout ssl/localhost.key -out ssl/localhost.csr \
-			-subj "/C=ID/ST=State/L=City/O=Drax/CN=-TEST"
-
-		openssl x509 -req -sha512 -days 365 \
-			-extfile ssl/v3.ext.conf \
-			-CA ssl/ca.pem -CAkey ssl/ca.key -CAcreateserial \
-			-in ssl/localhost.csr \
-			-out ssl/localhost.crt
-
 	fi
 
 else
@@ -73,7 +78,6 @@ else
 	echo "Workdir : $workdir"
 
 	if [ "$1" = "composer" ]; then
-
 		docker-compose exec php [ ! -e /usr/bin/composer ] \
 			&& echo "installing composer" \
 			&& docker-compose exec php wget https://getcomposer.org/installer \
