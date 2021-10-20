@@ -1,4 +1,6 @@
 !.gitignore
 !default.conf.example
 !nginx.conf
+!conf.d
+conf.d/*
 *
