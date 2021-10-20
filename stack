@@ -94,7 +94,7 @@ else
 		docker-compose exec -w "$workdir" php "./$@"
 
 	elif [ "$1" = "npm" ]; then
-		docker-compose exec -w "$workdir" php "$@"
+		docker-compose exec -w "$workdir" node "$@"
 
 	elif [ "$1" = "firebase" ]; then
 		docker-compose exec -w "$workdir" php "$@"
